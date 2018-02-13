@@ -50,37 +50,38 @@ func doReduce(
 	// }
 	// file.Close()
 	//
-
-	// open intermedia file and read the keyValue pairs
 	kvMap := make(map[string][]string)
 	for i := 0; i < nMap; i++ {
 		inFileName := reduceName(jobName, i, reduceTaskNumber)
 		inFile, err := os.Open(inFileName)
 		if err != nil {
-			panic("can't open file:" + inFileName)
+			panic("err: intermediate file can't be opened" + inFileName)
 		}
 		defer inFile.Close()
 
 		var kv KeyValue
-		for decoder := json.NewDecoder(inFile);decoder.Decode(&kv) != io.EOF; {
+		for decoder := json.NewDecoder(inFile); decoder.Decode(&kv) != io.EOF; {
 			kvMap[kv.Key] = append(kvMap[kv.Key], kv.Value)
 		}
 	}
+
 	var keys []string
 	for k := range kvMap {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
-	//reduce
-	out_fd, err := os.Create(outFile)
+	out_file, err := os.Create(outFile)
 	if err != nil {
-		panic("can't create file: " + outFile)
+		panic("err: output file for reducer can't be created: " + outFile)
 	}
-	defer out_fd.Close()
-	enc := json.NewEncoder(out_fd)
+
+	defer out_file.Close()
+
+	out_encoder := json.NewEncoder(out_file)
 	for _, k := range keys {
 		reduced_value := reduceF(k, kvMap[k])
-		enc.Encode(KeyValue{k, reduced_value})
+		out_encoder.Encode(KeyValue{k, reduced_value})
 	}
+
 }

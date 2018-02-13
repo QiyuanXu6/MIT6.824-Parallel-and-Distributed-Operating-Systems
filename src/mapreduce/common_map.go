@@ -63,43 +63,42 @@ func doMap(
 	//
 
 	// create map which map file name to file point and encoder
+	// this map is created for easy close
 	open_files := make(map[string]File_Encoder)
-	// create a function to
 	intermediate_file_Encoder := func(filename string) *json.Encoder {
-		// check if file exist or not
 		file_encoder, ok := open_files[filename]
-		//  if file not exist, os.Create the file
-		//		if create err: panic
-		//		if create succ: add into the map
-		// 		return the file encoder
 		if !ok {
 			file, err := os.Create(filename)
 			if err != nil {
-				panic("can't create file:" + filename)
+				panic("err: creating intermediate file failed " + filename)
 			}
 			open_files[filename] = File_Encoder{file, json.NewEncoder(file)}
 			return open_files[filename].enCoder
 		}
-		// if the file exists and is being opened successfully, return the file encoder
 		return file_encoder.enCoder
 	}
 
 	defer func() {
 		for _, file_encoder := range open_files {
+			// only need to close file pointer
 			file_encoder.file.Close()
 		}
 	} ()
 
-	// start mapping
+
+	// read filea and get content
 	content, err := ioutil.ReadFile(inFile)
 	if err != nil {
 		panic("can't read file:" + inFile)
 	}
+	// call mapF(filename, content
 	kv_pairs := mapF(inFile, string(content))
 	for _, kv := range kv_pairs {
-		filename := reduceName(jobName, mapTaskNumber, ihash(kv.Key)%nReduce)
-		encoder := intermediate_file_Encoder(filename)
-		encoder.Encode(&kv)
+		// filename
+		r := ihash(kv.Key)
+		filename := reduceName(jobName, mapTaskNumber, r % nReduce)
+		json_encoder := intermediate_file_Encoder(filename)
+		json_encoder.Encode(&kv)
 	}
 }
 
